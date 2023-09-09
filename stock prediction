@@ -1,0 +1,58 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+
+
+data = pd.read_csv('C:\\Users\\nooru\\OneDrive\\Desktop\\HDFC.csv')
+prices = data['Close'].values.reshape(-1, 1)
+
+
+scaler = MinMaxScaler()
+prices_scaled = scaler.fit_transform(prices)
+
+
+sequence_length = 10  
+sequences = []
+targets = []
+for i in range(len(prices_scaled) - sequence_length):
+    sequences.append(prices_scaled[i:i+sequence_length])
+    targets.append(prices_scaled[i+sequence_length])
+
+X = np.array(sequences)
+y = np.array(targets)
+
+
+split_ratio = 0.8
+split_index = int(split_ratio * len(X))
+
+X_train, X_test = X[:split_index], X[split_index:]
+y_train, y_test = y[:split_index], y[split_index:]
+
+
+model = Sequential([
+    LSTM(50, activation='relu', input_shape=(sequence_length, 1)),
+    Dropout(0.2),
+    Dense(1)
+])
+
+model.compile(optimizer='adam', loss='mse')
+
+
+model.fit(X_train, y_train, epochs=50, batch_size=32, validation_data=(X_test, y_test))
+
+
+predicted_prices_scaled = model.predict(X_test)
+predicted_prices = scaler.inverse_transform(predicted_prices_scaled)
+
+
+plt.figure(figsize=(12, 6))
+plt.plot(data['Date'][split_index+sequence_length:], prices[split_index+sequence_length:], label='Actual Prices')
+plt.plot(data['Date'][split_index+sequence_length:], predicted_prices, label='Predicted Prices')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.title('Stock Price Prediction using LSTM')
+plt.legend()
+plt.show()                        
